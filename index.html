@@ -939,13 +939,19 @@
 
     el.logoutBtn.addEventListener("click", async () => {
       try {
-        await signOut();
+        clearStatus();
+        await supabaseClient.auth.signOut({ scope: "local" });
+
         state.bills = [];
         state.session = null;
         state.user = null;
+        state.year = "all";
+        state.category = "all";
+
         resetForm();
-        clearStatus();
+        render();
         renderAuthView();
+        showStatus("Logout eseguito.", "ok", el.loginStatus);
       } catch (error) {
         console.error(error);
         showStatus(`Logout non riuscito: ${error.message}`, "error");
@@ -1035,12 +1041,25 @@
       await refreshData(true);
     });
 
-    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
       state.session = session;
       state.user = session?.user ?? null;
       renderAuthView();
+
       if (state.user) {
-        await refreshData();
+        setTimeout(() => {
+          refreshData().catch((error) => {
+            console.error(error);
+            showStatus(`Errore Supabase: ${error.message}`, "error");
+          });
+        }, 0);
+      } else {
+        state.bills = [];
+        state.year = "all";
+        state.category = "all";
+        resetForm();
+        clearStatus();
+        render();
       }
     });
 
