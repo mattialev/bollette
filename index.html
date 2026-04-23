@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spese bollette</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(16, 24, 48, 0.78);
+      --text: #edf2ff;
+      --muted: #a7b3d1;
+      --line: rgba(255,255,255,0.08);
+      --accent: #72a7ff;
+      --danger: #ff7b8e;
+      --success: #6ee7c8;
+      --shadow: 0 20px 60px rgba(0,0,0,0.28);
+      --radius: 22px;
+      --max: 1180px;
+    }
+
+    body[data-theme="light"] {
+      --bg: #eef3fb;
+      --panel: rgba(255,255,255,0.85);
+      --text: #13203a;
+      --muted: #5e6b85;
+      --line: rgba(19,32,58,0.10);
+      --accent: #3f7cff;
+      --danger: #d34c66;
+      --success: #0f9e83;
+      --shadow: 0 20px 60px rgba(33, 52, 92, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(114,167,255,0.22), transparent 28%),
+        radial-gradient(circle at top right, rgba(110,231,200,0.15), transparent 26%),
+        linear-gradient(180deg, #0a0f1d 0%, #111933 100%);
+      color: var(--text);
+      min-height: 100vh;
+      transition: background 180ms ease, color 180ms ease;
+    }
+
+    body[data-theme="light"] {
+      background:
+        radial-gradient(circle at top left, rgba(63,124,255,0.14), transparent 28%),
+        radial-gradient(circle at top right, rgba(22,181,154,0.10), transparent 26%),
+        linear-gradient(180deg, #edf3fb 0%, #dfe9f7 100%);
+    }
+
+    .shell {
+      width: min(100% - 24px, var(--max));
+      margin: 0 auto;
+      padding: 20px 0 32px;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 70ch;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button, select, input, textarea { font: inherit; }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: 180ms ease;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), #8fc4ff);
+      color: #091120;
+      font-weight: 700;
+    }
+
+    button.secondary {
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    button.danger {
+      background: rgba(255,123,142,0.12);
+      color: var(--danger);
+      border: 1px solid rgba(255,123,142,0.18);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.04);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.25fr 0.95fr;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .panel-inner { padding: 18px; }
+
+    .login-shell {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px 12px;
+    }
+
+    .login-card {
+      width: min(100%, 460px);
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: var(--shadow);
+      border-radius: 28px;
+      padding: 22px;
+    }
+
+    .login-card h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      letter-spacing: -0.03em;
+    }
+
+    .login-card p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .stat {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .stat .label {
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-bottom: 10px;
+    }
+
+    .stat .value {
+      font-size: clamp(1.1rem, 2.5vw, 1.65rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .section-head span {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .field-inline, .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field-inline select,
+    .field input,
+    .field textarea,
+    .field select {
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 12px 14px;
+      outline: none;
+    }
+
+    .field textarea {
+      min-height: 96px;
+      resize: vertical;
+    }
+
+    .field label,
+    .field-inline label {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .chart-wrap {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 20px;
+      padding: 12px;
+      min-height: 350px;
+    }
+
+    .chart-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin: 4px 0 10px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    svg { width: 100%; height: auto; display: block; }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 18px;
+      background: rgba(255,255,255,0.03);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+    }
+
+    th, td {
+      padding: 13px 14px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.92rem;
+      background: rgba(255,255,255,0.02);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(8px);
+    }
+
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .amount { font-weight: 800; }
+    .notes { color: var(--muted); }
+
+    .row-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 8px 10px;
+    }
+
+    form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .hint, .footer-note, .user-badge {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .empty, .status {
+      padding: 18px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed rgba(255,255,255,0.12);
+      border-radius: 16px;
+    }
+
+    .status {
+      margin-bottom: 14px;
+      text-align: left;
+    }
+
+    .status.error {
+      color: #ffd4db;
+      border-color: rgba(255,123,142,0.3);
+      background: rgba(255,123,142,0.08);
+    }
+
+    .status.ok {
+      color: #d9fff4;
+      border-color: rgba(110,231,200,0.25);
+      background: rgba(110,231,200,0.08);
+    }
+
+    [hidden] { display: none !important; }
+
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 680px) {
+      .shell { width: min(100% - 16px, var(--max)); padding-top: 14px; }
+      .hero { flex-direction: column; }
+      .form-grid { grid-template-columns: 1fr; }
+      .panel-inner { padding: 14px; }
+      .chart-wrap { min-height: 280px; }
+    }
+
+    @media (max-width: 460px) {
+      .stats { grid-template-columns: 1fr; }
+      .actions, .toolbar { width: 100%; }
+      .actions > *, .toolbar > * { flex: 1 1 auto; }
+    }
+  </style>
+</head>
+<body data-theme="dark">
+  <section id="loginView" class="login-shell">
+    <div class="login-card">
+      <div class="actions" style="justify-content: flex-end; margin-bottom: 8px;">
+        <button class="secondary" id="loginThemeToggleBtn">☀️ Light mode</button>
+      </div>
+      <h1>Accedi</h1>
+      <p>Entra con email e password del tuo utente Supabase. La registrazione pubblica non è esposta in questa app.</p>
+      <div id="loginStatus" class="status" hidden></div>
+      <form id="loginForm">
+        <div class="field">
+          <label for="loginEmail">Email</label>
+          <input id="loginEmail" type="email" autocomplete="email" required />
+        </div>
+        <div class="field">
+          <label for="loginPassword">Password</label>
+          <input id="loginPassword" type="password" autocomplete="current-password" required />
+        </div>
+        <button class="primary" type="submit">Accedi</button>
+      </form>
+      <p class="footer-note" style="margin-top: 16px;">Prima di usare questa versione, configura in Supabase la tabella con <code>user_id</code>, le policy RLS e il tuo utente.</p>
+    </div>
+  </section>
+
+  <main id="appView" hidden>
+    <div class="shell">
+      <header class="hero">
+        <div>
+          <h1>Spese bollette</h1>
+          <p>Webapp responsive con accesso protetto, filtri per anno e tipologia, grafico, tabella, inserimento/modifica/eliminazione e tema chiaro/scuro.</p>
+          <p class="user-badge" id="userBadge"></p>
+        </div>
+        <div class="actions">
+          <button class="secondary" id="themeToggleBtn">☀️ Light mode</button>
+          <button class="secondary" id="reloadBtn">Ricarica dati</button>
+          <button class="danger" id="logoutBtn">Logout</button>
+        </div>
+      </header>
+
+      <div id="statusBox" class="status" hidden></div>
+
+      <div class="grid">
+        <section class="panel">
+          <div class="panel-inner">
+            <div class="stats" id="stats"></div>
+
+            <div class="section-head">
+              <div>
+                <h2>Andamento importi</h2>
+                <span>Vista per data fine periodo</span>
+              </div>
+              <div class="toolbar">
+                <div class="field-inline">
+                  <label for="yearFilter">Anno</label>
+                  <select id="yearFilter"></select>
+                </div>
+                <div class="field-inline">
+                  <label for="categoryFilter">Tipologia</label>
+                  <select id="categoryFilter"></select>
+                </div>
+              </div>
+            </div>
+
+            <div class="chart-wrap">
+              <div class="chart-meta">
+                <span id="chartSummary">Nessun dato</span>
+                <span>Linea + punti</span>
+              </div>
+              <div id="chartContainer"></div>
+            </div>
+
+            <div class="section-head" style="margin-top: 16px;">
+              <div>
+                <h2>Storico bollette</h2>
+                <span id="tableSummary">0 record</span>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fine periodo</th>
+                    <th>Tipologia</th>
+                    <th>Importo</th>
+                    <th>Note</th>
+                    <th>Azioni</th>
+                  </tr>
+                </thead>
+                <tbody id="billsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel">
+          <div class="panel-inner">
+            <div class="section-head">
+              <div>
+                <h2 id="formTitle">Nuova bolletta</h2>
+                <span>Aggiungi o modifica un record</span>
+              </div>
+            </div>
+
+            <form id="billForm">
+              <input type="hidden" id="billId" />
+
+              <div class="form-grid">
+                <div class="field">
+                  <label for="endDate">Fine periodo</label>
+                  <input id="endDate" type="date" required />
+                </div>
+                <div class="field">
+                  <label for="amount">Importo (€)</label>
+                  <input id="amount" type="number" min="0" step="0.01" inputmode="decimal" required />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="category">Tipologia</label>
+                <select id="category">
+                  <option value="Luce">Luce</option>
+                  <option value="Gas">Gas</option>
+                  <option value="Acqua">Acqua</option>
+                  <option value="Internet">Internet</option>
+                  <option value="Altro">Altro</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="notes">Note</label>
+                <textarea id="notes" placeholder="Esempio: conguaglio, picco di consumo, fornitore, dettagli..."></textarea>
+              </div>
+
+              <div class="actions">
+                <button class="primary" type="submit" id="saveBtn">Salva bolletta</button>
+                <button class="secondary" type="button" id="resetBtn">Reset</button>
+              </div>
+            </form>
+
+            <p class="hint">Ogni riga è legata all'utente autenticato. Con le policy RLS corrette, ogni account vede e modifica solo le proprie bollette.</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = "https://wennjbuawevzhqzlfrcr.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_KzPbA_Avt3y-aIdBt85LpQ_ut9rFRGV";
+    const OWNER_USER_ID = "42ee9272-2e04-41b4-b3ad-110e53662c4b";
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const state = {
+      bills: [],
+      year: "all",
+      category: "all",
+      editingId: null,
+      theme: "dark",
+      session: null,
+      user: null,
+    };
+
+    const el = {
+      loginView: document.getElementById("loginView"),
+      appView: document.getElementById("appView"),
+      loginForm: document.getElementById("loginForm"),
+      loginEmail: document.getElementById("loginEmail"),
+      loginPassword: document.getElementById("loginPassword"),
+      loginStatus: document.getElementById("loginStatus"),
+      loginThemeToggleBtn: document.getElementById("loginThemeToggleBtn"),
+      userBadge: document.getElementById("userBadge"),
+      logoutBtn: document.getElementById("logoutBtn"),
+      stats: document.getElementById("stats"),
+      yearFilter: document.getElementById("yearFilter"),
+      categoryFilter: document.getElementById("categoryFilter"),
+      billsTable: document.getElementById("billsTable"),
+      chartContainer: document.getElementById("chartContainer"),
+      chartSummary: document.getElementById("chartSummary"),
+      tableSummary: document.getElementById("tableSummary"),
+      billForm: document.getElementById("billForm"),
+      billId: document.getElementById("billId"),
+      endDate: document.getElementById("endDate"),
+      amount: document.getElementById("amount"),
+      category: document.getElementById("category"),
+      notes: document.getElementById("notes"),
+      formTitle: document.getElementById("formTitle"),
+      saveBtn: document.getElementById("saveBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      themeToggleBtn: document.getElementById("themeToggleBtn"),
+      reloadBtn: document.getElementById("reloadBtn"),
+      statusBox: document.getElementById("statusBox"),
+    };
+
+    function showStatus(message, type = "ok", target = el.statusBox) {
+      target.hidden = false;
+      target.className = `status ${type}`;
+      target.textContent = message;
+    }
+
+    function clearStatus(target = el.statusBox) {
+      target.hidden = true;
+      target.textContent = "";
+      target.className = "status";
+    }
+
+    function euro(value) {
+      return new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(value || 0);
+    }
+
+    function dateIt(dateStr) {
+      if (!dateStr) return "-";
+      const [y, m, d] = dateStr.split("-").map(Number);
+      return new Intl.DateTimeFormat("it-IT").format(new Date(y, m - 1, d));
+    }
+
+    function monthShort(dateStr) {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      return new Intl.DateTimeFormat("it-IT", { month: "short", year: "2-digit" }).format(new Date(y, m - 1, d));
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function loadTheme() {
+      const stored = localStorage.getItem("spese-bollette-theme");
+      state.theme = stored === "light" ? "light" : "dark";
+      applyTheme();
+    }
+
+    function applyTheme() {
+      document.body.setAttribute("data-theme", state.theme);
+      const text = state.theme === "dark" ? "☀️ Light mode" : "🌙 Dark mode";
+      el.themeToggleBtn.textContent = text;
+      el.loginThemeToggleBtn.textContent = text;
+      localStorage.setItem("spese-bollette-theme", state.theme);
+    }
+
+    function renderAuthView() {
+      const isLoggedIn = Boolean(state.session && state.user);
+      el.loginView.hidden = isLoggedIn;
+      el.appView.hidden = !isLoggedIn;
+      if (isLoggedIn) {
+        el.userBadge.textContent = `Connesso come ${state.user.email}`;
+      }
+    }
+
+    async function signIn(email, password) {
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      return data;
+    }
+
+    async function signOut() {
+      const { error } = await supabaseClient.auth.signOut();
+      if (error) throw error;
+    }
+
+    async function getCurrentSession() {
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (error) throw error;
+      return data.session;
+    }
+
+    async function loadBills() {
+      if (!state.user) return [];
+      const { data, error } = await supabaseClient
+        .from("bills")
+        .select("*")
+        .eq("user_id", state.user.id)
+        .order("end_date", { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map(item => ({
+        id: item.id,
+        endDate: item.end_date,
+        amount: Number(item.amount),
+        category: item.category || "Altro",
+        notes: item.notes || "",
+      }));
+    }
+
+    async function createBill(payload) {
+      const { error } = await supabaseClient
+        .from("bills")
+        .insert([{
+          user_id: state.user.id,
+          end_date: payload.endDate,
+          amount: payload.amount,
+          category: payload.category,
+          notes: payload.notes,
+        }]);
+
+      if (error) throw error;
+    }
+
+    async function updateBill(id, payload) {
+      const { error } = await supabaseClient
+        .from("bills")
+        .update({
+          end_date: payload.endDate,
+          amount: payload.amount,
+          category: payload.category,
+          notes: payload.notes,
+        })
+        .eq("id", id)
+        .eq("user_id", state.user.id);
+
+      if (error) throw error;
+    }
+
+    async function deleteBill(id) {
+      const { error } = await supabaseClient
+        .from("bills")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", state.user.id);
+
+      if (error) throw error;
+    }
+
+    function getSortedBills() {
+      return [...state.bills].sort((a, b) => new Date(a.endDate) - new Date(b.endDate));
+    }
+
+    function getYears() {
+      return [...new Set(state.bills.map(b => String(new Date(b.endDate).getFullYear())))].sort();
+    }
+
+    function getCategories() {
+      return [...new Set(state.bills.map(b => b.category || "Altro"))].sort((a, b) => a.localeCompare(b, "it"));
+    }
+
+    function getFilteredBills() {
+      return getSortedBills().filter(b => {
+        const matchesYear = state.year === "all" || String(new Date(b.endDate).getFullYear()) === state.year;
+        const matchesCategory = state.category === "all" || (b.category || "Altro") === state.category;
+        return matchesYear && matchesCategory;
+      });
+    }
+
+    function computeStats(bills) {
+      if (!bills.length) return { total: 0, avg: 0, max: 0, last: null };
+      const amounts = bills.map(b => Number(b.amount));
+      const total = amounts.reduce((sum, value) => sum + value, 0);
+      return {
+        total,
+        avg: total / bills.length,
+        max: Math.max(...amounts),
+        last: bills.at(-1) || null,
+      };
+    }
+
+    function renderYearFilter() {
+      const years = getYears();
+      const previous = state.year;
+      el.yearFilter.innerHTML = `<option value="all">Tutti</option>` + years.map(year => `<option value="${year}">${year}</option>`).join("");
+      if (previous !== "all" && years.includes(previous)) {
+        el.yearFilter.value = previous;
+      } else {
+        state.year = "all";
+        el.yearFilter.value = "all";
+      }
+    }
+
+    function renderCategoryFilter() {
+      const categories = getCategories();
+      const previous = state.category;
+      el.categoryFilter.innerHTML = `<option value="all">Tutte</option>` + categories.map(category => `<option value="${category}">${category}</option>`).join("");
+      if (previous !== "all" && categories.includes(previous)) {
+        el.categoryFilter.value = previous;
+      } else {
+        state.category = "all";
+        el.categoryFilter.value = "all";
+      }
+    }
+
+    function renderStats(bills) {
+      const stats = computeStats(bills);
+      const cards = [
+        { label: "Totale", value: euro(stats.total) },
+        { label: "Media", value: euro(stats.avg) },
+        { label: "Massimo", value: euro(stats.max) },
+        { label: "Ultimo importo", value: stats.last ? euro(stats.last.amount) : "-" },
+      ];
+
+      el.stats.innerHTML = cards.map(card => `
+        <div class="stat">
+          <div class="label">${card.label}</div>
+          <div class="value">${card.value}</div>
+        </div>
+      `).join("");
+
+      const activeFilters = [
+        state.year !== "all" ? state.year : null,
+        state.category !== "all" ? state.category : null,
+      ].filter(Boolean).join(" · ");
+
+      el.tableSummary.textContent = activeFilters
+        ? `${bills.length} record · ${activeFilters}`
+        : `${bills.length} record`;
+    }
+
+    function renderTable(bills) {
+      if (!bills.length) {
+        el.billsTable.innerHTML = `<tr><td colspan="5"><div class="empty">Nessuna bolletta per questo filtro.</div></td></tr>`;
+        return;
+      }
+
+      el.billsTable.innerHTML = bills.map(bill => `
+        <tr>
+          <td>${dateIt(bill.endDate)}</td>
+          <td>${escapeHtml(bill.category || "Altro")}</td>
+          <td class="amount">${euro(bill.amount)}</td>
+          <td class="notes">${escapeHtml(bill.notes || "-")}</td>
+          <td>
+            <div class="row-actions">
+              <button class="icon-btn" type="button" data-action="edit" data-id="${bill.id}">Modifica</button>
+              <button class="icon-btn" type="button" data-action="delete" data-id="${bill.id}">Elimina</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function renderChart(bills) {
+      if (!bills.length) {
+        el.chartContainer.innerHTML = `<div class="empty">Aggiungi almeno una bolletta per vedere il grafico.</div>`;
+        el.chartSummary.textContent = "Nessun dato";
+        return;
+      }
+
+      const width = 860;
+      const height = 320;
+      const padding = { top: 20, right: 18, bottom: 52, left: 52 };
+      const values = bills.map(b => Number(b.amount));
+      const minValue = Math.min(...values);
+      const maxValue = Math.max(...values);
+      const yMin = Math.max(0, Math.floor((minValue - 10) / 10) * 10);
+      const yMax = Math.ceil((maxValue + 10) / 10) * 10;
+      const chartW = width - padding.left - padding.right;
+      const chartH = height - padding.top - padding.bottom;
+      const steps = 5;
+      const strokeColor = getComputedStyle(document.body).getPropertyValue("--accent").trim() || "#72a7ff";
+
+      const x = (index) => padding.left + (bills.length === 1 ? chartW / 2 : (index / (bills.length - 1)) * chartW);
+      const y = (value) => padding.top + (1 - (value - yMin) / (yMax - yMin || 1)) * chartH;
+
+      const points = bills.map((bill, index) => ({
+        x: x(index),
+        y: y(Number(bill.amount)),
+        label: monthShort(bill.endDate),
+        amount: euro(Number(bill.amount)),
+      }));
+
+      const polyline = points.map(p => `${p.x},${p.y}`).join(" ");
+      const grid = Array.from({ length: steps + 1 }, (_, i) => {
+        const value = yMin + ((yMax - yMin) / steps) * i;
+        const yy = y(value);
+        return `
+          <line x1="${padding.left}" y1="${yy}" x2="${width - padding.right}" y2="${yy}" stroke="rgba(255,255,255,0.08)" />
+          <text x="${padding.left - 10}" y="${yy + 4}" text-anchor="end" fill="rgba(255,255,255,0.68)" font-size="12">${Math.round(value)}</text>
+        `;
+      }).join("");
+
+      const xLabels = points.map((p) => `
+        <text x="${p.x}" y="${height - 18}" text-anchor="middle" fill="rgba(255,255,255,0.68)" font-size="12">${p.label}</text>
+      `).join("");
+
+      const circles = points.map((p) => `
+        <g>
+          <circle cx="${p.x}" cy="${p.y}" r="5.5" fill="${strokeColor}" />
+          <circle cx="${p.x}" cy="${p.y}" r="10" fill="transparent">
+            <title>${p.label}: ${p.amount}</title>
+          </circle>
+        </g>
+      `).join("");
+
+      el.chartContainer.innerHTML = `
+        <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Grafico andamento importi">
+          ${grid}
+          <polyline fill="none" stroke="${strokeColor}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${polyline}" />
+          ${circles}
+          ${xLabels}
+        </svg>
+      `;
+
+      el.chartSummary.textContent = `Da ${dateIt(bills[0].endDate)} a ${dateIt(bills.at(-1).endDate)}`;
+    }
+
+    function render() {
+      renderYearFilter();
+      renderCategoryFilter();
+      const bills = getFilteredBills();
+      renderStats(bills);
+      renderTable(bills);
+      renderChart(bills);
+    }
+
+    function resetForm() {
+      state.editingId = null;
+      el.billId.value = "";
+      el.billForm.reset();
+      el.formTitle.textContent = "Nuova bolletta";
+      el.saveBtn.textContent = "Salva bolletta";
+    }
+
+    function populateForm(bill) {
+      state.editingId = bill.id;
+      el.billId.value = bill.id;
+      el.endDate.value = bill.endDate;
+      el.amount.value = bill.amount;
+      el.category.value = bill.category || "Luce";
+      el.notes.value = bill.notes || "";
+      el.formTitle.textContent = "Modifica bolletta";
+      el.saveBtn.textContent = "Aggiorna bolletta";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    async function refreshData(showOkMessage = false) {
+      try {
+        clearStatus();
+        state.bills = await loadBills();
+        render();
+        if (showOkMessage) showStatus("Dati sincronizzati con Supabase.", "ok");
+      } catch (error) {
+        console.error(error);
+        showStatus(`Errore Supabase: ${error.message}`, "error");
+        state.bills = [];
+        render();
+      }
+    }
+
+    async function syncAuthState() {
+      state.session = await getCurrentSession();
+      state.user = state.session?.user ?? null;
+      renderAuthView();
+      if (state.user) {
+        await refreshData();
+      }
+    }
+
+    el.loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        clearStatus(el.loginStatus);
+        await signIn(el.loginEmail.value.trim(), el.loginPassword.value);
+        await syncAuthState();
+        el.loginPassword.value = "";
+      } catch (error) {
+        console.error(error);
+        showStatus(`Login non riuscito: ${error.message}`, "error", el.loginStatus);
+      }
+    });
+
+    el.logoutBtn.addEventListener("click", async () => {
+      try {
+        await signOut();
+        state.bills = [];
+        state.session = null;
+        state.user = null;
+        resetForm();
+        clearStatus();
+        renderAuthView();
+      } catch (error) {
+        console.error(error);
+        showStatus(`Logout non riuscito: ${error.message}`, "error");
+      }
+    });
+
+    el.billForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const payload = {
+        endDate: el.endDate.value,
+        amount: Number(el.amount.value),
+        category: el.category.value,
+        notes: el.notes.value.trim(),
+      };
+      if (!payload.endDate || Number.isNaN(payload.amount) || !state.user) return;
+
+      try {
+        clearStatus();
+        if (state.editingId) {
+          await updateBill(state.editingId, payload);
+          showStatus("Bolletta aggiornata.", "ok");
+        } else {
+          await createBill(payload);
+          showStatus("Bolletta salvata.", "ok");
+        }
+        await refreshData(false);
+        resetForm();
+      } catch (error) {
+        console.error(error);
+        showStatus(`Operazione non riuscita: ${error.message}`, "error");
+      }
+    });
+
+    el.resetBtn.addEventListener("click", resetForm);
+
+    el.yearFilter.addEventListener("change", (event) => {
+      state.year = event.target.value;
+      render();
+    });
+
+    el.categoryFilter.addEventListener("change", (event) => {
+      state.category = event.target.value;
+      render();
+    });
+
+    el.billsTable.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+
+      const id = button.dataset.id;
+      const action = button.dataset.action;
+      const bill = state.bills.find(item => item.id === id);
+      if (!bill) return;
+
+      if (action === "edit") {
+        populateForm(bill);
+        return;
+      }
+
+      if (action === "delete") {
+        const confirmed = window.confirm(`Eliminare la bolletta del ${dateIt(bill.endDate)} da ${euro(bill.amount)}?`);
+        if (!confirmed) return;
+
+        try {
+          clearStatus();
+          await deleteBill(id);
+          if (state.editingId === id) resetForm();
+          await refreshData(false);
+          showStatus("Bolletta eliminata.", "ok");
+        } catch (error) {
+          console.error(error);
+          showStatus(`Eliminazione non riuscita: ${error.message}`, "error");
+        }
+      }
+    });
+
+    function toggleTheme() {
+      state.theme = state.theme === "dark" ? "light" : "dark";
+      applyTheme();
+      if (!el.appView.hidden) renderChart(getFilteredBills());
+    }
+
+    el.themeToggleBtn.addEventListener("click", toggleTheme);
+    el.loginThemeToggleBtn.addEventListener("click", toggleTheme);
+
+    el.reloadBtn.addEventListener("click", async () => {
+      await refreshData(true);
+    });
+
+    supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+      state.session = session;
+      state.user = session?.user ?? null;
+      renderAuthView();
+      if (state.user) {
+        await refreshData();
+      }
+    });
+
+    async function init() {
+      loadTheme();
+      if (OWNER_USER_ID && OWNER_USER_ID !== "42ee9272-2e04-41b4-b3ad-110e53662c4b") {
+        console.warn("OWNER_USER_ID non aggiornato");
+      }
+      await syncAuthState();
+    }
+
+    init();
+  </script>
+</body>
+</html>
